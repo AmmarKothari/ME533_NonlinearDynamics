@@ -55,3 +55,24 @@ end
 figure(4)
 plot(-1:step:1, vals(:,1), 'r-', -1:step:1, vals(:,2), 'b-')
 axis equal
+
+%% Problem 2
+% (i)
+xs = -1e0:1e-3:1e0;
+x1 = 0*xs;
+x2 = 0*xs;
+V = 0*xs;
+V_dot = 0*xs;
+i = 1;
+for x = xs
+    x1(i) = x^3;
+    x2(i) = sin(x)^4;
+    V(i) = x^2;
+    V_dot(i) = -2*x^4 + 2*x*sin(x)^4;
+    i = i+1;
+end
+% plot(xs, x1, 'rx-', xs, x2, 'bo-', xs, -x1+x2, 'g-')
+plot(xs, V, 'r-', xs, V_dot, 'b-')
+
+f = @(x) -x^3 + sin(x)^4;
+fzero(f, 1)

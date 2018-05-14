@@ -1,12 +1,20 @@
 %% HW3
 
 %% Problem 1 (7.7)
+<<<<<<< HEAD
 clf(figure(1));
 xdd_plant = @(alpha1, alpha2, x, v) [x(2), -alpha1*abs(x(1))*x(2)^2-alpha2*x(1)^3*cos(2*x(1))+v];
 
 syms x1 x2 v
 dt=1e-3;
 ts = 0:dt:pi/100;
+=======
+xdd_plant = @(alpha1, alpha2, x, v) [x(2), -alpha1*abs(x(1))*x(2)^2-alpha2*x(1)^3*cos(2*x(1))+v];
+
+syms x1 x2 v
+
+ts = 0:1e-3:pi/100;
+>>>>>>> f7807b8fe4617b9ef89f6fd13897bbdf8d470872
 xs = [];
 alpha1s = [-1, 0, 1, 2*(rand(1)-0.5)];
 alpha2s = [-1, 2, 5, 6*(rand(1)-0.5)];

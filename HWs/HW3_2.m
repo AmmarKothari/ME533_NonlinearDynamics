@@ -17,17 +17,20 @@ alpha2_limit = @(t) 3;
 F = @(t,x) -alpha1_hat(t)*abs(x(1))*x(2)^2 - alpha2_hat(t)*x(1)^3*cos(2*x(1));
 
 dt = 1e-2;
-t_end = 10;
+t_end = 20;
 ts = 0:dt:t_end;
 
 % Controller
 lambda = 100;
-eta = 1;
+eta = 0.1;
+u_max = 5;
+u_min = -5;
 
 s_func = @(x_err) x_err(2)+lambda*x_err(1);
 
 xs = -100*(ones(length(ts),3));
 vs = -100*(ones(length(ts),1));
+ss = -100*(ones(length(ts),1));
 % % Plant only plot
 % x = [1,-1];
 % v = 0;
@@ -41,9 +44,13 @@ vs = -100*(ones(length(ts),1));
 % end
 
 % xdd_des = [1e-3*0:dt:1, zeros(length((1+dt):dt:t_end), 1)']';
-xdd_des = sin(pi/2*ts');
-xd_des = cumsum(dt*xdd_des);
-x_des = cumsum(dt*xd_des);
+% xdd_des = sin(pi/2*ts');
+% xd_des = cumsum(dt*xdd_des);
+% x_des = cumsum(dt*xd_des);
+x_des = sin(pi/2*ts');
+% x_des = [0:dt:1, ones(length((1+dt):dt:t_end), 1)']';
+xd_des = diff(x_des)/dt; xd_des = [xd_des(1); xd_des];
+xdd_des = diff(xd_des)/dt; xdd_des = [xdd_des(1); xdd_des];
 traj = [x_des, xd_des, xdd_des];
 x = traj(1, 1:2);
 
@@ -54,6 +61,7 @@ for it = 1:length(ts)
     k = F(ts(it),x) + eta;
     s = s_func(x_err);
     v = u_hat - k*sign(s);
+%     v = min(u_min, max(u_max, v_raw));
     % plot(ts(1:it), x_des(1:it,1), 'rx')
     
     % run dynamics forward
@@ -62,6 +70,7 @@ for it = 1:length(ts)
     
     xs(it, :) = [x, xdd];
     vs(it) = v;
+    ss(it) = s;
     
     
 end
@@ -105,9 +114,10 @@ plot(ts, vs, 'kx-')
 title('Control Input')
 
 % s plot
-% subplot(3,2,6)
-% plot(ts, s_temp, 'kx-')
-% title('S Plot')
+subplot(3,2,6)
+plot(ts, ss, 'bo-')
+title('s plot')
+% fprintf('Switch Count: %d \n', switch_count)
 
 
 %% Problem 2 7.10
@@ -157,10 +167,15 @@ ss = -100*(ones(length(ts),1));
 % end
 
 % xdd_des = [1e-3*0:dt:1, zeros(length((1+dt):dt:t_end), 1)']';
-xddd_des = sin(pi/2*ts');
-xdd_des = cumsum(dt*xddd_des);
-xd_des = cumsum(dt*xdd_des);
-x_des = cumsum(dt*xd_des);
+% xddd_des = sin(pi/2*ts');
+% xdd_des = cumsum(dt*xddd_des);
+% xd_des = cumsum(dt*xdd_des);
+% x_des = cumsum(dt*xd_des);
+x_des = sin(pi/2*ts');
+% x_des = [0:dt:1, ones(length((1+dt):dt:t_end), 1)']';
+xd_des = diff(x_des)/dt; xd_des = [xd_des(1); xd_des];
+xdd_des = diff(xd_des)/dt; xdd_des = [xdd_des(1); xdd_des];
+xddd_des = diff(xdd_des)/dt; xddd_des = [xddd_des(1); xddd_des];
 traj = [x_des, xd_des, xdd_des, xddd_des];
 x = traj(1, 1:m);
 switch_count = 0;
@@ -249,6 +264,7 @@ title('s plot')
 fprintf('Switch Count: %d \n', switch_count)
 
 %% Problem 3 8.3???
+figure(1); cla;
 ap1=0.1; ap2=-4; bp=2;
 bv=1/bp; av1=1/bv; av2=ap1/bv; av3=ap2/bv;
 
@@ -257,7 +273,7 @@ m = 2;
 
 
 dt = 1e-3;
-t_end = 5;
+t_end = 100;
 ts = 0:dt:t_end;
 
 ys = -100*(ones(length(ts),m+1));
@@ -286,9 +302,14 @@ s_func = @(x_err) x_err(2)+lambda*x_err(1);
 P = [1, 0.1, 0; 0.1, 1, 0; 0, 0, 1];
 
 % ydd_des = [1e-3*0:dt:1, zeros(length((1+dt):dt:t_end), 1)']';
-ydd_des = sin(pi/2*ts');
-yd_des = cumsum(dt*ydd_des);
-y_des = cumsum(dt*yd_des);
+% ydd_des = sin(pi/2*ts');
+% yd_des = cumsum(dt*ydd_des);
+% y_des = cumsum(dt*yd_des);
+% y_des = sin(pi/2*ts');
+y_des = [0:dt:1, ones(length((1+dt):dt:t_end), 1)']';
+yd_des = diff(y_des)/dt; yd_des = [yd_des(1); yd_des];
+ydd_des = diff(yd_des)/dt; ydd_des = [ydd_des(1); ydd_des];
+
 traj = [y_des, yd_des, ydd_des];
 y = traj(1, 1:m);
 switch_count = 0;
@@ -312,6 +333,7 @@ for it = 1:length(ts)
     
     % update parameters of model
     am = am + ad_hat*dt;
+    am = max(-10, min(am, 10));
     
     ys(it, :) = [y, ydd];
     vs(it) = v;
@@ -380,12 +402,14 @@ fprintf('Switch Count: %d \n', switch_count)
 figure(2)
 ap1_m = ams(:,2)./ams(:,1);
 ap2_m = ams(:,3)./ams(:,1);
-subplot(2,1,1)
+subplot(2,2,1)
 plot(ts, ap1_m,'bx', ts, ones(length(ts), 1)*ap1, 'r-')
-ylim([-2*ap1,2*ap1])
+% ylim([-2*ap1,2*ap1])
 title('a_{p1}')
+subplot(2,2,3)
+plot(ts, ap1_m-ones(length(ts), 1)*ap1)
 
-subplot(2,1,2)
+subplot(2,2,2)
 plot(ts, ap2_m, 'bx', ts, ones(length(ts), 1)*ap2, 'r-')
-ylim([-2*abs(ap2),2*abs(ap2)])
+% ylim([-2*abs(ap2),2*abs(ap2)])
 title('a_{p2}')

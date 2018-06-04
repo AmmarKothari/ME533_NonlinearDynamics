@@ -14,10 +14,13 @@ classdef link_gripper
         kp, ki
         alpha_dot_dot
         e, e_prev, e_total
+        
+        % plant dynamics
+        j_func
     end
     
     methods
-        function obj = link_gripper(name, parent, a, h, c, h_poi)
+        function obj = link_gripper(name, parent, a, h, c, h_poi, j_func)
             obj.name = name; % name of this link
             obj.parent = parent; % name of parent link
             obj.h0 = h;
@@ -35,6 +38,10 @@ classdef link_gripper
             obj.alpha_dot_dot = 0;
             obj.e_total = 0;
             obj.plot_handles=[];
+            if nargin < 7 % input command is the torque
+                j_func = @(u) u;
+            end
+            obj.j_func = j_func;
         end
         function obj = setZero(obj, zero_pose)
             obj.zero_pose = zero_pose;
@@ -48,7 +55,7 @@ classdef link_gripper
         function obj = setAlphaDotDesired(obj, alpha_dot_desired)
             obj.alpha_dot_desired = alpha_dot_desired;
         end
-        function obj = calcAlphaDD(obj)
+        function obj = calcAlphaDD_PD(obj)
             % calculates alpha_dd for a given error in alpha_d
             e = obj.alpha_dot_desired - obj.alpha_dot;
             obj.e_total = obj.e_total + e;

@@ -1,42 +1,41 @@
-% Example 9.1 from Nonlinear Book
+% system setup using lagrangian equations that have been derived
+
 m_inputs = 2;
+I_func = @(m, l) 1/12*m*l^2;
 
 % physical parameters of the arm
 m1 = 1;
 l1 = 1;
-me = 2;
-% delta_e = pi/6;
-delta_e = 0;
-% I1 = .12;
-I1 = 1/12*m1*l1^2;
-lc1 = 0.5;
-% Ie = 0.25;
-lce = 0.6;
+m2 = 2;
 l2 = 1.2;
-Ie = 1/12*me*l2^2;
 
-% define matrices
-a1 = I1 + m1*lc1^2 + Ie + me*lce^2 + me*l1^2;
-a2 = Ie + me*lce^2;
-a3 = me*l1*lce*cos(delta_e);
-a4 = me*l1*lce*sin(delta_e);
+I1 = I_func(m1, l1);
+I2 = I_func(m2, l2);
 
+lc1 = l1/2;
+lc2 = l2/2;
 
-H11 = @(q1,q2) a1 + 2*a3*cos(q2) + 2*a4*sin(q2);
-H12 = @(q1,q2) a2 + a3*cos(q2) + a4*sin(q2);
-H21 = @(q1,q2) H12(q1, q2);
-H22 = @(q1,q2) a2;
-h   = @(q1,q2) a2*sin(q2) - a4*cos(q2);
+k1 = 0.0; k2 = 1.0;
+b1 = 0; b2 = 0;
+theta1_0 = 0; % resting position of spring
+theta2_0 = 0; 
 
 % Inertia Matrix
-H = @(q1,q2) [H11(q1,q2), H12(q1,q2); H21(q1,q2), H22(q1,q2)];
+M = @(q1, q2) Lagrangian_M(I1,I2,l1,l2,m1,m2,q2);
 
 % Coriolis and Damping Matrix
-C = @(q1, q2, q1_d, q2_d) [-h(q1,q2)*q2_d, -h(q1,q2)*(q1_d + q2_d); h(q1,q2)*q1_d, 0];
+C = @(q1, q2, q1_d, q2_d) Lagrangian_C(l1, l2, m2, q2, q1_d, q2_d);
 
+% Spring
+K = @() Lagrangian_K(k1,k2);
 
-% joint angles
-% syms q1 q2 q1_d q2_d t1 t2
+% Potential
+G = @() Lagrangian_G(k1,k2,theta1_0,theta2_0);
+
+% Generalized Forces
+F = @(tau1,tau2,q1_d,q2_d) Lagrangian_Q(b1,b2,tau1,tau2,q1_d,q2_d);
+
+% Joint Angles
 q1 = 0; q2 = 0;
 q1_d = 0; q2_d = 0;
 
@@ -52,8 +51,9 @@ KD = 100*eye(m_inputs);
 KP = 20*KD;
 e = @(Q , Q_target) Q - Q_target;
 torque_limit = 1e5;  % some limit to the control input
-T = @(e, Q_d) max(-torque_limit, min(torque_limit,-KP*e - KD*Q_d));
-
+% T = @(e, Q_d) max(-torque_limit, min(torque_limit,-KP*e - KD*Q_d));
+T = @(e, Q_d) [0; 1];
+tau1 = 0; tau2 = 0;
 
 dt = 1e-3; % this needs to be atleast 1e-3, 1e-4 takes forever to finish!
 ts = 0:dt:1;
@@ -64,9 +64,11 @@ for t = ts
     % control law
     e_current = e(Q, Q_target);
     T_current = T(e_current, Q_d);
+    tau1 = T_current(1);
+    tau2 = T_current(2);
     
     % solve for accelerations
-    Q_dd = H(q1, q2) \ (T_current - C(q1, q2, q1_d, q2_d)*Q_d);
+    Q_dd = M(q1,q2) \ (F(tau1,tau2,q1_d,q2_d) - C(q1,q2,q1_d,q2_d)*Q_d - K()*Q - G());
     
     Q_d = Q_d + Q_dd * dt;
     q1_d = Q_d(1);
@@ -82,6 +84,7 @@ for t = ts
     
 
 end
+
 m = 2;
 n = 1;
 
@@ -93,4 +96,3 @@ legend('q1', 'q2')
 subplot(m,n,2);
 plot(ts, T_all(:,1), 'rx', ts, T_all(:,2), 'bo')
 legend('t1', 't2')
-

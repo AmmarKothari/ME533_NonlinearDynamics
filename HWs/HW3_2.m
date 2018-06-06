@@ -268,7 +268,8 @@ figure(1); cla;
 ap1=0.1; ap2=-4; bp=2;
 bv=1/bp; av1=1/bv; av2=ap1/bv; av3=ap2/bv;
 
-plant = @(t,y,v) 1/av1*(av2*y(2) - av3*y(1) + v);
+v_lim = 1e10;
+plant = @(t,y,v) 1/av1*(-av2*y(2) - av3*y(1) + v);
 m = 2;
 
 

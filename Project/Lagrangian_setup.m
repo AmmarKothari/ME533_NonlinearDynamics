@@ -18,6 +18,8 @@ F = @(tau1,tau2,q1_d,q2_d) Lagrangian_Q(b1,b2,tau1,tau2,q1_d,q2_d);
 % Joint Angles
 q1 = 0; q2 = 0;
 q1_d = 0; q2_d = 0;
+q1_dd = 0; q2_dd = 0;
 
 Q = [q1; q2];
 Q_d = [q1_d; q2_d];
+Q_dd = [q1_dd; q2_dd];

@@ -29,13 +29,13 @@ Q_target = @(i_t) [q1_target(i_t); q2_target(i_t)];
 Q_target_d = @(i_t) [q1_target_d(i_t); q2_target_d(i_t)];
 Q_target_dd = @(i_t) [q1_target_dd(i_t); q2_target_dd(i_t)];
 
+% % % % % % % % % % % % % 
 % Control law
+% % % % % % % % % % % % % 
 KD = 100*eye(m_inputs);
 KP = 20*KD;
 e = @(Q, Q_target) Q - Q_target; %position error
 torque_limit = 1e2;  % some limit to the control input
-% PD Control
-% T = @(e, Q_d) max(-torque_limit, min(torque_limit,-KP*e - KD*Q_d));
 
 % Adaptive control law
 R = [0.03 0 0 0; 0 0.05 0 0; 0 0 0.1 0; 0 0 0 0.3];
@@ -52,6 +52,11 @@ s = @(Q_d, Qr_d) Q_d - Qr_d;
 % springs
 % T_FF = F
 
+LAMBDA = 20;
+HRW = 20*eye(m_inputs); % Hurwitz constant
+Qtilde = @(Q, Qdes) Q - Qdes;
+Qr = @(Qdes, Qtilde) Qdes(2) - HRW*Qtilde(1);
+s = @(Q, Qr) Q(2) - Qr(2);
 
 tau1 = q1_target(1); tau2 = q2_target(2);
 

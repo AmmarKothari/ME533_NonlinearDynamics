@@ -30,10 +30,28 @@ Q_target = @(i_t) [q1_target(i_t); q2_target(i_t)];
 % Control law
 KD = 100*eye(m_inputs);
 KP = 20*KD;
-e = @(Q, Q_target) Q - Q_target;
+e = @(Q, Q_target) Q - Q_target; %position error
 torque_limit = 1e2;  % some limit to the control input
 % PD Control
 T = @(e, Q_d) max(-torque_limit, min(torque_limit,-KP*e - KD*Q_d));
+
+% PD Control for adaptive control
+hrw = 20*eye(m_inputs); % Hurwitz constant
+ed = @(Q_d, Q_target_d) Q_d - Q_target_d; % velocity error
+qr_d = @(q_target_d, e)q1_target_d - hrw*e; %reference velocity
+qr_dd = @(q_target_dd, ed)q1_target_dd - hrw*ed; % Not sure that's how to get reference acceleration
+
+
+%Evaluate Y (adaptive control), this should go to loop
+e1 = e(q1, q1_target);
+ed1 = ed(q1_d, q1_target_d);
+qr1_d = qr_d(q1_target_d, e1);
+qr1_dd = qr_dd(q1_target_dd, ed1);
+e2 = e(q2, q2_target);
+ed2 = ed(q2_d, q2_target_d);
+qr2_d = qr_d(q2_target_d, e2);
+qr2_dd = qr_dd(q2_target_dd, ed2);
+Y = Y_func(qr1_dd, qr2_dd, qr1_d, qr2_d, q1_d, q2_d, q2);  
 
 % Feed Forward
 % use a PD Control, but also apply a torque term based on current state for

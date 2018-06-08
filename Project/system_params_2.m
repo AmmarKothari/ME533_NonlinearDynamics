@@ -1,14 +1,9 @@
-% System 1 Paremeters:
-
-m_inputs = 2;
+m_inputs = 5;
 I_func = @(m, l) 1/12*m*l^2;
 
 % physical parameters of the arm
 m1 = 1;
-l1 = 1;
 m2 = 2;
-l2 = 1.2;
-
 I1 = I_func(m1, l1);
 I2 = I_func(m2, l2);
 

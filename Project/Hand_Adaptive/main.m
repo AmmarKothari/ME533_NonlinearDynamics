@@ -8,7 +8,7 @@ ax = axes(f);
 
 % Configuration
 hand_config1()
-system_params_2()
+system_params_1()
 Hand_Lagrangian_setup()
 Planner_config1()
 
@@ -70,7 +70,7 @@ tau1 = 0; tau2 = 0;
 % Reference Model -- assuming both fingers are the same
 M_hat = @(Q) M2(Q); % assuming perfect knowledge of the inertia matrix
 C_hat = @(Q, b1_hat, b2_hat) Lagrangian_C_manual(I1,m1,l1, I2,m2,l2,  Q, b1_hat, b2_hat); % don't know damping terms
-K_hat = @(k1_hat, k2_hat) K2(Q) (k1_hat,k2_hat);
+% K_hat = @(k1_hat, k2_hat) K2(Q) (k1_hat,k2_hat);
 G_hat = @(k1_hat, k2_hat) Lagrangian_G(k1_hat,k2_hat,theta1_0,theta2_0);
 F_hat = @(tau1, tau2) [tau1; tau2];
 

@@ -1,4 +1,4 @@
-function M = Lagrangian_M_manual(I1,m1,l2, I2,m2,l2, theta1,theta2)
+function M = Lagrangian_M_manual(I1,m1,l1, I2,m2,l2, theta1,theta2)
    % manually figured out the lagrangian for a 2 link manipulator
    z1 = l1^2*m1/4+I1+I2;
    z2 = l2^2*m2/4+I2;

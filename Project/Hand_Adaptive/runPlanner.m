@@ -4,7 +4,9 @@
 % solve for angles to touch end to contact points
 % minimize squared error
 path_fn = 'STOMP_Path.mat';
-if isfile(path_fn)
+% if isfile(path_fn)
+%     load(path_fn)
+if true
     load(path_fn)
 else
     end_pts = g.endPoints();

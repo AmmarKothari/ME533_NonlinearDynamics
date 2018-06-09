@@ -1,6 +1,5 @@
 clear all
- % % % PUT ALL HAND FILES INTO A DIFFERENT FOLDER
- % % % SEPERATE THINGS MORE -- DIFFICULT TO BE PULLING FROM SAME MATRICES
+addpath('..');
 % Setup
 f = figure(1);
 clf(f);
@@ -104,7 +103,7 @@ G_hat = @(Rfing_hat, Lfing_hat) [0;
 
 
 
-a_hat_d = @(R, Y, s) -R * Y'*s; % this should be inv(R)?
+a_hat_d = @(R, Y, s) -inv(R) * Y'*s; % this should be inv(R)?
 Rfing_hat = Rfing;
 Lfing_hat = Lfing;
 Ahat_true = [Rfing.b1, Rfing.b2, Rfing.k1, Rfing.k2, Lfing.b1, Lfing.b2, Lfing.k1, Lfing.k2];
@@ -136,6 +135,7 @@ Qdes_all = [];
 Ahat_all = [];
 i_t = 1;
 t = 0; ts = [];
+trajectory_error_all =[];
 % for t = ts
 while i_t <= size(alpha_path,1)
     Qdes = Q_target(i_t);
@@ -169,7 +169,10 @@ while i_t <= size(alpha_path,1)
 %     tau1 = clamp_func(T_current(1));
     
     % solve for accelerations -- Plant
-    Q_dd = M2(Q) \ (F2(T_current) - C2(Q)*Q(:,2) - K2()*Q(:,1) - G2());
+    p1 = M2(Q);
+    p2 = F2(T_current) - C2(Q)*Q(:,2) - K2()*Q(:,1) - G2();
+    Q_dd = p1(2:end,2:end) \ p2(2:end); % removing the unactuated joint
+    Q_dd = [ 0; Q_dd]; % add zero action for that joint
     Q_dd(isnan(Q_dd)) = 0; % deals with 
     
     % control law
@@ -191,7 +194,9 @@ while i_t <= size(alpha_path,1)
     G_hat_current = G_hat(Rfing_hat, Lfing_hat);
     F_hat_current = F_hat(T_current);
     
-    Q(:,2) = Q(:,2) + Q_dd * dt;
+    % for some reason accelerations are opposite of what they should be?
+    Q(:,2) = Q(:,2) + -Q_dd * dt;
+%     Q(:,2) = Q(:,2) + Q_dd.*[0;1;-1;1;-1]*dt;
     
     Q(:,1) = Q(:,1) + Q(:,2) * dt;
     
@@ -207,25 +212,38 @@ while i_t <= size(alpha_path,1)
     ts = [ts; t];
     
     % Pure Pursuit Trajectory Following
-    if norm(e_current(:,1))
+    trajectory_error = norm(e_current(:,1));
+    trajectory_error_all = [trajectory_error_all; trajectory_error];
+    if trajectory_error < 0.5
         i_t = i_t + 1;
     end
-    
-    plot(ts, Q_all(:,1), 'rx', ts, Q_all(:,2), 'bo');
+    if rem(i_t,2) == 0
+        col = {'rx', 'bo'};
+    else
+        col = {'gx', 'ko'};
+    end
+       
+%     plot(ts, Q_all(:,2)-Qdes_all(:,2), col{1},...
+%         ts, Q_all(:,3)-Qdes_all(:,3), col{2},...
+%         ts, Q_all(:,4)-Qdes_all(:,4), col{1},...
+%         ts, Q_all(:,5)-Qdes_all(:,5), col{2}...
+%         );
+    plot(ts, trajectory_error_all, 'rx')
+    pause(1e-3)
 end
 
 m = 3;
 n = 1;
 
-subplot(m,n,1);
-plot(ts, Q_all(:,1), 'rx', ts, Q_all(:,2), 'bo');
-hold on; plot(ts, Qdes_all(:,1), 'r-.', ts, Qdes(:,2), 'b-.'); hold off
-title('Joint Positions');
+% subplot(m,n,1);
+% plot(ts, Q_all(:,2), 'rx', ts, Q_all(:,3), 'bo');
+% hold on; plot(ts, Qdes_all(:,1), 'r-.', ts, Qdes(:,2), 'b-.'); hold off
+% title('Joint Positions');
 
 % legend('q1', 'q2')
 % figure(2)
 % subplot(m,n,1);
-% plot(ts, Q_all(:,1)-Qdes_all(:,1), 'rx', ts, Q_all(:,2)-Qdes_all(:,2), 'bo');
+plot(ts, Q_all(:,2)-Qdes_all(:,2), 'rx', ts, Q_all(:,3)-Qdes_all(:,3), 'bo');
 % hold on; plot(ts, , 'r-.', ts, , 'b-.'); hold off
 % title('Position Error');
 % legend('q1', 'q2')

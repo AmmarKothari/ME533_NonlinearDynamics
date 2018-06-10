@@ -11,8 +11,8 @@ Rfing.m2 = 2; Rfing.l2 = 1.2;
 Rfing.I1 = I_func(Rfing.m1, Rfing.l1);
 Rfing.I2 = I_func(Rfing.m2, Rfing.l2);
 
-Rfing.k1 = 0.0; Rfing.k2 = 0.0;
-Rfing.b1 = 0; Rfing.b2 = 0;
+Rfing.k1 = 3.0; Rfing.k2 = 5.0;
+Rfing.b1 = 4; Rfing.b2 = 3;
 Rfing.theta1_0 = 0; % resting position of spring
 Rfing.theta2_0 = 0;
 

@@ -11,16 +11,6 @@ system_params_1()
 Hand_Lagrangian_setup()
 Planner_config1()
 
-% Draw Gripper
-g.draw(ax);
-obj.draw(ax);
-axis equal
-
-% Draw Contact Points
-hold on
-plot(ax, contact_points(:,1), contact_points(:,2), 'o')
-hold off
-
 % Trajectory
 % solve for angles to touch end to contact points
 % minimize squared error
@@ -28,26 +18,33 @@ start_alphas = g.get_alphas();
 end_pts = g.endPoints();
 alphas = g.invKin(contact_points);
 
+% Warm up pahts
+% warm_up_paths_1 = start_alphas;
+% for t_warm = 0:dt:1
+%     warm_up_paths_1 = [warm_up_paths_1; warm_up_paths_1(1,:)+sin(t_warm)];
+% end
+% warm_up_paths_2 = warm_up_paths_1(end,:);
+% for t_warm = 0:dt:1
+%     warm_up_paths_2 = [warm_up_paths_2; warm_up_paths_2(1,:)+cos(t_warm)*(rem(t_warm,0.1)^2)];
+% end
+% 
+% warm_up_paths = [warm_up_paths_1; warm_up_paths_2];
+
 % Joint Space -- Linear Interp
 % alpha_path = linearAlphaPath(start_alphas, alphas, 100);
 runPlanner()
+% alpha_path = [warm_up_paths; stomp_path];
 alpha_path = stomp_path;
 
-% Work Space
-xy_path = [];
-for i = 1:length(alpha_path)
-    g_temp = g.calc_poses(alpha_path(i,:));
-    xy_path = [xy_path; g_temp.endPoints()];
-end
 
-% Plot Workspace
-hold on; plot(xy_path(:,1), xy_path(:,2), 'rx'); hold off;
-
+% Pursuit Constants
+TRAJECTORY_EPSILON = [1e-3, 1e-2];
+DEADZONE = 0.01;
 
 
 % % % % Adaptive Control Stuff % % % %
 % assume that both fingers have the same model
-q_target = stomp_path;
+q_target = alpha_path;
 q_target_d = [zeros(1,size(q_target,2)); diff(q_target)];
 q_target_dd = [zeros(1,size(q_target,2)); diff(q_target_d)];
 
@@ -59,7 +56,7 @@ Q = [start_alphas', zeros(Q_INPUTS,2)];
 % % % % % % % % % % % % % 
 % Control law
 % % % % % % % % % % % % % 
-KD = 100*eye(m_inputs);
+KD = 200*eye(m_inputs);
 KP = 20*KD;
 e = @(Q, Q_target) Q - Q_target; %errors [position, velocity, acceleration]
 torque_limit = 1e2;  % some limit to the control input
@@ -178,16 +175,23 @@ while i_t <= size(alpha_path,1)
     % control law
     % Model Adaptation
     Y = Y_func(Rfing, Lfing);
-    a_hat_d_current = a_hat_d(R,Y,s_current);
+    trajectory_error = norm(e_current(:,1));
+    trajectory_error_all = [trajectory_error_all; trajectory_error];
+    if trajectory_error < DEADZONE % DEADZONE!
+        a_hat_d_current = 0*Ahat_current;
+    else
+        a_hat_d_current = a_hat_d(R,Y,s_current);
+    end
     Ahat_current = Ahat_current+a_hat_d_current*dt;
-    Ahat_current(1) = Rfing_hat.b1_hat;
-    Ahat_current(2) = Rfing_hat.b2_hat;
-    Ahat_current(3) = Rfing_hat.k1_hat;
-    Ahat_current(4) = Rfing_hat.k2_hat;
-    Ahat_current(5) = Lfing_hat.b1_hat;
-    Ahat_current(6) = Lfing_hat.b2_hat;
-    Ahat_current(7) = Lfing_hat.k1_hat;
-    Ahat_current(8) = Lfing_hat.k2_hat;
+    Rfing_hat.b1_hat = Ahat_current(1);
+    Rfing_hat.b2_hat = Ahat_current(2);
+    Rfing_hat.k1_hat = Ahat_current(3);
+    Rfing_hat.k2_hat = Ahat_current(4);
+    Lfing_hat.b1_hat = Ahat_current(5);
+    Lfing_hat.b2_hat = Ahat_current(6);
+    Lfing_hat.k1_hat = Ahat_current(7);
+    Lfing_hat.k2_hat = Ahat_current(8);
+    
     M_hat_current = M_hat(Q);
     C_hat_current = C_hat(Q, Rfing_hat, Lfing_hat);
     K_hat_current = K_hat(Rfing_hat, Lfing_hat);
@@ -212,9 +216,12 @@ while i_t <= size(alpha_path,1)
     ts = [ts; t];
     
     % Pure Pursuit Trajectory Following
-    trajectory_error = norm(e_current(:,1));
-    trajectory_error_all = [trajectory_error_all; trajectory_error];
-    if trajectory_error < 0.5
+    if i_t == size(alpha_path,1)
+        trajectory_epsilon = TRAJECTORY_EPSILON(1);
+    else
+        trajectory_epsilon = TRAJECTORY_EPSILON(2);
+    end
+    if trajectory_error < trajectory_epsilon
         i_t = i_t + 1;
     end
     if rem(i_t,2) == 0
@@ -229,7 +236,7 @@ while i_t <= size(alpha_path,1)
 %         ts, Q_all(:,5)-Qdes_all(:,5), col{2}...
 %         );
     plot(ts, trajectory_error_all, 'rx')
-    pause(1e-3)
+    drawnow limitrate
 end
 
 m = 3;
@@ -248,17 +255,168 @@ plot(ts, Q_all(:,2)-Qdes_all(:,2), 'rx', ts, Q_all(:,3)-Qdes_all(:,3), 'bo');
 % title('Position Error');
 % legend('q1', 'q2')
 
-subplot(m,n,2);
-plot(ts, T_all(:,1), 'rx', ts, T_all(:,2), 'bo')
-title('Torque Input');
-legend('t1', 't2')
+% subplot(m,n,2);
+% plot(ts, T_all(:,1), 'rx', ts, T_all(:,2), 'bo')
+% title('Torque Input');
+% legend('t1', 't2')
+% 
+% subplot(m,n,3)
+% plot(ts, Ahat_all);
+% hold on;
+% plot(ts, ones(length(ts),1)*Ahat_true, ':');
+% hold off;
+% legend('a1_{hat}', 'a2_{hat}', 'a3_{hat}', 'a4_{hat}', 'a1', 'a2', 'a3', 'a4')
+% title('Parameter Values')
 
-subplot(m,n,3)
-plot(ts, Ahat_all);
+% Desired End Piont Trajectory
+xy_path = [];
+for i = 1:length(alpha_path)
+    g_temp = g.calc_poses(alpha_path(i,:));
+    xy_path = [xy_path; g_temp.endPoints()];
+end
+
+% Actual End Point Trajectory
+xy_actual_path = [];
+for i = 1:size(Q_all,1)
+    g_temp = g.calc_poses(Q_all(i,:));
+    xy_actual_path = [xy_actual_path; g_temp.endPoints()];
+end
+Description = "Tight bounds on following trajectory";
+save('output_traj_1.mat', 'Q_all', 'Qdes_all', 'trajectory_error_all', 'xy_path', 'xy_actual_path',...
+    'contact_points', 'g', 'obj', 'ts', 'Ahat_all', 'Ahat_true', 'TRAJECTORY_EPSILON', 'DEADZONE', ...
+    'Description')
+
+%% Generate Animation
+clear all
+load('output_traj_1.mat')
+% hand_config1();
+% Planner_config1()
+f = figure(2);
+clf(f);
+ax = axes(f);
+    
+
+
+% Plot showing actual and desired finger paths -- PAPER!
+plot(xy_path(:,1), xy_path(:,2), 'rx')
 hold on;
-plot(ts, ones(length(ts),1)*Ahat_true, ':');
-hold off;
-legend('a1_{hat}', 'a2_{hat}', 'a3_{hat}', 'a4_{hat}', 'a1', 'a2', 'a3', 'a4')
-title('Parameter Values')
+plot(xy_actual_path(:,1), xy_actual_path(:,2), 'bo')
+hold off
+legend('Desired', 'Actual')
+xlabel('X Pos')
+ylabel('Y Pos')
+title('Desired and Actual End Point Trajectories')
+axis tight
+
+for i = 1:size(Q_all,1)
+    cla(f);
+    g = g.calc_poses(Q_all(i,:));
+    % Draw Gripper
+    g.draw(ax);
+    
+    % Draw Object
+    obj.draw(ax);
+    
+    % Draw Contact Points
+    hold on
+    plot(ax, contact_points(:,1), contact_points(:,2), 'o')
+    plot(xy_path(:,1), xy_path(:,2), 'rx')
+    hold off
+    
+    axis equal
+    drawnow limitrate
+end
 
 
+% 
+% % Plot Workspace
+% hold on; plot(xy_path(:,1), xy_path(:,2), 'rx'); hold off;
+
+%% Plots for Paper
+clear all
+load('output_traj_1.mat')
+f = figure(2);
+clf(f);
+ax = axes(f);
+
+    
+% Plot showing actual and desired finger paths
+plot(xy_path(:,1), xy_path(:,2), 'ro')
+hold on; plot(xy_actual_path(:,1), xy_actual_path(:,2), 'bx'); hold off;
+legend('Desired', 'Actual')
+xlabel('X Pos')
+ylabel('Y Pos')
+title('Desired and Actual End Point Trajectories -- Tight Error Bounds')
+axis tight
+saveas(gcf, 'TrajectoryEndpointError_Tight.png');
+
+% Plot showing joint angle errors
+plot(ts, Q_all(:,2)-Qdes_all(:,2), 'rx', ...
+    ts, Q_all(:,3)-Qdes_all(:,3), 'bo',...
+    ts, Q_all(:,4)-Qdes_all(:,4), 'g^',...
+    ts, Q_all(:,5)-Qdes_all(:,5), 'k*'...
+    )
+legend('R-Proximal', 'R-Distal', 'L-Proximal', 'L-Distal')
+title('Error in Joint Angles -- Tight Error Bounds')
+xlabel('Time(s)')
+ylabel('Joint Angle Error (radians)');
+saveas(gcf, 'JointError_Tight.png');
+
+% Plot Unknowns
+col = jet(8);
+plot_step = 10;
+plot(ts(1:plot_step:end), Ahat_all(1:plot_step:end,1)-Ahat_true(1), 'color',col(1,:), 'marker', 'x', 'LineStyle','none')
+hold on
+plot(ts(1:plot_step:end), Ahat_all(1:plot_step:end,2)-Ahat_true(2), 'color',col(2,:), 'marker', 'o', 'LineStyle','none')
+plot(ts(1:plot_step:end), Ahat_all(1:plot_step:end,5)-Ahat_true(5), 'color',col(3,:), 'marker', '^', 'LineStyle','none')
+plot(ts(1:plot_step:end), Ahat_all(1:plot_step:end,6)-Ahat_true(6), 'color',col(4,:), 'marker', '*', 'LineStyle','none')
+hold off
+title('Springs: Parameter Estimation Error')
+xlabel('Time')
+ylabel('Parameter Error')
+legend('R-Proximal', 'R-Distal', 'L-Proximal', 'L-Distal')
+saveas(gcf, 'Spring_ParamError_Tight.png')
+
+plot(ts(1:plot_step:end), Ahat_all(1:plot_step:end,3)-Ahat_true(3), 'color',col(1,:), 'marker', 'x', 'LineStyle','none')
+hold on
+plot(ts(1:plot_step:end), Ahat_all(1:plot_step:end,4)-Ahat_true(4), 'color',col(2,:), 'marker', 'o', 'LineStyle','none')
+plot(ts(1:plot_step:end), Ahat_all(1:plot_step:end,7)-Ahat_true(7), 'color',col(3,:), 'marker', '^', 'LineStyle','none')
+plot(ts(1:plot_step:end), Ahat_all(1:plot_step:end,8)-Ahat_true(8), 'color',col(4,:), 'marker', '*', 'LineStyle','none')
+hold off
+title('Dampers: Parameter Estimation Error')
+xlabel('Time')
+ylabel('Parameter Error')
+legend('R-Proximal', 'R-Distal', 'L-Proximal', 'L-Distal')
+saveas(gcf, 'Damper_ParamError_Tight.png')
+
+
+
+% Plots for loose bounds
+clear all
+load('output_traj_2.mat')
+f = figure(2);
+clf(f);
+ax = axes(f);
+
+    
+% Plot showing actual and desired finger paths
+plot(xy_path(:,1), xy_path(:,2), 'ro')
+hold on; plot(xy_actual_path(:,1), xy_actual_path(:,2), 'bx'); hold off;
+legend('Desired', 'Actual')
+xlabel('X Pos')
+ylabel('Y Pos')
+title('Desired and Actual End Point Trajectories -- Loose Error Bounds')
+axis tight
+saveas(gcf, 'TrajectoryEndpointError_Loose.png');
+
+% Plot showing joint angle errors
+plot(ts, Q_all(:,2)-Qdes_all(:,2), 'rx', ...
+    ts, Q_all(:,3)-Qdes_all(:,3), 'bo',...
+    ts, Q_all(:,4)-Qdes_all(:,4), 'g^',...
+    ts, Q_all(:,5)-Qdes_all(:,5), 'k*'...
+    )
+legend('R-Proximal', 'R-Distal', 'L-Proximal', 'L-Distal')
+title('Error in Joint Angles -- Loose Error Bounds')
+xlabel('Time(s)')
+ylabel('Joint Angle Error (radians)');
+saveas(gcf, 'JointError_Loose.png');

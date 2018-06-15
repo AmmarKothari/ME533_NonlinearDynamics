@@ -7,6 +7,7 @@ ax = axes(f);
 
 % Configuration
 hand_config1()
+% g = g.calc_poses([0, -pi/3, 0, -pi/4, pi/4]);
 system_params_1()
 Hand_Lagrangian_setup()
 Planner_config1()
@@ -281,7 +282,8 @@ for i = 1:size(Q_all,1)
     g_temp = g.calc_poses(Q_all(i,:));
     xy_actual_path = [xy_actual_path; g_temp.endPoints()];
 end
-Description = "Tight bounds on following trajectory";
+% Description = "Tight bounds on following trajectory. Different Starting point.";
+Description = "Tight bounds on following trajectory.";
 save('output_traj_1.mat', 'Q_all', 'Qdes_all', 'trajectory_error_all', 'xy_path', 'xy_actual_path',...
     'contact_points', 'g', 'obj', 'ts', 'Ahat_all', 'Ahat_true', 'TRAJECTORY_EPSILON', 'DEADZONE', ...
     'Description')
@@ -289,26 +291,24 @@ save('output_traj_1.mat', 'Q_all', 'Qdes_all', 'trajectory_error_all', 'xy_path'
 %% Generate Animation
 clear all
 load('output_traj_1.mat')
-% hand_config1();
-% Planner_config1()
 f = figure(2);
 clf(f);
 ax = axes(f);
     
-
+gif_name = 'tight.gif';
 
 % Plot showing actual and desired finger paths -- PAPER!
 plot(xy_path(:,1), xy_path(:,2), 'rx')
 hold on;
 plot(xy_actual_path(:,1), xy_actual_path(:,2), 'bo')
 hold off
-legend('Desired', 'Actual')
+% legend('Desired', 'Actual')
 xlabel('X Pos')
 ylabel('Y Pos')
 title('Desired and Actual End Point Trajectories')
 axis tight
 
-for i = 1:size(Q_all,1)
+for i = 1:50:size(Q_all,1)
     cla(f);
     g = g.calc_poses(Q_all(i,:));
     % Draw Gripper
@@ -324,7 +324,16 @@ for i = 1:size(Q_all,1)
     hold off
     
     axis equal
-    drawnow limitrate
+%     drawnow limitrate
+    drawnow
+    frame = getframe(f);
+    im = frame2im(frame);
+    [imind, cm] = rgb2ind(im,256);
+    if i == 1 
+        imwrite(imind,cm,gif_name,'gif', 'Loopcount',1); 
+    else 
+        imwrite(imind,cm,gif_name,'gif','WriteMode','append'); 
+    end 
 end
 
 
